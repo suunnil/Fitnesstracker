@@ -115,6 +115,81 @@
   </form>
 </div>
 
+<!-- ===== Daily detail panel (Paste inside the form or just after it) ===== -->
+<div class="card" style="margin-top:12px">
+  <strong>Daily Quick Log & Nutrition</strong>
+
+  <!-- Workouts Mon-Sat -->
+  <div style="margin-top:10px">
+    <label class="meta">Workout days (tap when done):</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button type="button" class="secondary smallBtn" data-day="Mon" id="dayMon">Mon</button>
+      <button type="button" class="secondary smallBtn" data-day="Tue" id="dayTue">Tue</button>
+      <button type="button" class="secondary smallBtn" data-day="Wed" id="dayWed">Wed</button>
+      <button type="button" class="secondary smallBtn" data-day="Thu" id="dayThu">Thu</button>
+      <button type="button" class="secondary smallBtn" data-day="Fri" id="dayFri">Fri</button>
+      <button type="button" class="secondary smallBtn" data-day="Sat" id="daySat">Sat</button>
+    </div>
+    <div class="small meta" style="margin-top:6px">Tap again to clear a day. These save to today's entry.</div>
+  </div>
+
+  <!-- Posture images -->
+  <div style="margin-top:10px">
+    <label class="meta">Posture photos (front / side) — upload small photos (safe: 200–400 KB each)</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <input id="postureFile1" type="file" accept="image/*" />
+      <input id="postureFile2" type="file" accept="image/*" />
+    </div>
+    <div id="posturePreview" style="display:flex;gap:8px;margin-top:8px"></div>
+  </div>
+
+  <!-- Food table -->
+  <div style="margin-top:12px">
+    <label class="meta">Food (enter grams) — add rows</label>
+    <table id="foodTable" style="width:100%;margin-top:8px;border-collapse:collapse">
+      <thead style="text-align:left;color:var(--muted);font-size:13px">
+        <tr><th style="width:36%">Item</th><th style="width:18%">g</th><th style="width:18%">kcal/100g</th><th style="width:18%">prot/100g (g)</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="addFoodRow" class="secondary">Add Food</button>
+      <button id="addPreset" class="secondary">Add Preset (rice/egg/oats)</button>
+      <div style="margin-left:auto" class="meta">Totals: <span id="totKcal">0</span> kcal • <span id="totProt">0</span> g protein</div>
+    </div>
+  </div>
+
+  <!-- Water and evaluate -->
+  <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div>
+      <label class="meta">Water (ml)</label>
+      <input id="waterMl" type="number" min="0" placeholder="e.g., 3000" style="width:120px;padding:8px;border-radius:8px" />
+    </div>
+
+    <div>
+      <label class="meta">Protein target (g)</label>
+      <input id="proteinTarget" type="number" min="0" placeholder="100" style="width:120px;padding:8px;border-radius:8px" />
+    </div>
+
+    <div>
+      <label class="meta">Calorie target (min - max)</label>
+      <input id="calMin" type="number" placeholder="1600" style="width:90px;padding:8px;border-radius:8px" />
+      <input id="calMax" type="number" placeholder="2200" style="width:90px;padding:8px;border-radius:8px;margin-left:6px" />
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button id="btnEvaluate" class="secondary">Evaluate Day</button>
+      <button id="btnSaveDaily" class="secondary">Save Daily Summary</button>
+    </div>
+  </div>
+
+  <div id="dailyResult" style="margin-top:10px;font-size:14px"></div>
+</div>
+
+<style>
+  .smallBtn{padding:8px 10px;border-radius:8px}
+</style>
+<!-- ===== end daily detail panel ===== -->
 <div class="grid2" style="display:grid;grid-template-columns:1fr 380px;gap:12px;margin-top:12px">
   <div class="card">
     <strong>Entries</strong>
