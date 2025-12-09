@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Fitness & Posture Tracker</title>
+<meta name="description" content="Simple daily tracker for meals, protein, workouts, posture and walks. Works on GitHub Pages (static, localStorage)." />
+<style>
+  :root{
+    --bg:#0f1720; --card:#0b1220; --muted:#98a2b3; --accent:#22c55e; --accent2:#60a5fa;
+    --glass: rgba(255,255,255,0.03);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#071021 0%, #071829 100%);color:#e6eef6;line-height:1.35}
+  .wrap{max-width:980px;margin:18px auto;padding:18px}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{font-size:20px;margin:0}
+  p.lead{margin:0;color:var(--muted);font-size:13px}
+  .card{background:var(--card);border-radius:10px;padding:14px;margin-top:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+  form.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:720px){ form.row{grid-template-columns:1fr} }
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input[type="text"], input[type="number"], input[type="date"], select, textarea{
+    width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit;font-size:14px;
+  }
+  textarea{min-height:72px;resize:vertical}
+  button{background:var(--accent);color:#012; border:none;padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .entry-list{max-height:420px;overflow:auto}
+  .entry{padding:10px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .meta{font-size:13px;color:var(--muted)}
+  .pill{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.05);font-weight:600;color:var(--muted);font-size:12px;margin-left:6px}
+  .summary{display:flex;gap:10px;flex-wrap:wrap}
+  .summary .s{background:rgba(255,255,255,0.05);padding:12px;border-radius:8px;min-width:120px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Fitness & Posture Tracker</h1>
+    <p class="lead">Track workouts, meals, posture, walks & protein</p>
+  </div>
+
+  <div class="controls">
+    <button id="btnAddSample">Add Sample</button>
+    <button id="btnExport" class="secondary">Export JSON</button>
+    <button id="btnCSV" class="secondary">Export CSV</button>
+    <input id="fileInput" type="file" accept="application/json" style="display:none" />
+    <button id="btnImport" class="secondary">Import JSON</button>
+
+    <!-- ⭐ QUICK ACTION BUTTONS -->
+    <div id="quickActions" style="display:flex;gap:8px;align-items:center;margin-left:8px">
+      <button id="btnQuickWorkout" title="Mark workout done">Workout ✔️</button>
+      <button id="btnQuickPosture" title="Mark posture done">Posture ✔️</button>
+      <button id="btnQuickWalk" title="Mark walk done">Walk ✔️</button>
+      <input id="quickProteinInput" type="number" min="0" placeholder="Prot g" style="width:74px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit" />
+      <button id="btnQuickProtein" title="Add protein">Add Prot</button>
+    </div>
+  </div>
+</header>
+
+<div class="card">
+  <form id="entryForm" class="row">
+    <div>
+      <label>Date</label>
+      <input id="date" type="date" required />
+    </div>
+    <div>
+      <label>Workout</label>
+      <select id="workout">
+        <option value="">-- none --</option>
+        <option>Push</option><option>Pull</option><option>Legs+Core</option><option>Rest</option>
+      </select>
+    </div>
+    <div>
+      <label>Breakfast</label>
+      <input id="breakfast" type="text" />
+    </div>
+    <div>
+      <label>Lunch</label>
+      <input id="lunch" type="text" />
+    </div>
+    <div>
+      <label>Snack</label>
+      <input id="snack" type="text" />
+    </div>
+    <div>
+      <label>Dinner</label>
+      <input id="dinner" type="text" />
+    </div>
+    <div>
+      <label>Protein (g)</label>
+      <input id="protein" type="number" />
+    </div>
+    <div>
+      <label>Walk done?</label>
+      <select id="walk"><option value="no">No</option><option value="yes">Yes</option></select>
+    </div>
+    <div>
+      <label>Posture done?</label>
+      <select id="posture"><option value="no">No</option><option value="yes">Yes</option></select>
+    </div>
+    <div>
+      <label>Notes</label>
+      <input id="notes" type="text" />
+    </div>
+
+    <div style="grid-column:1 / -1;display:flex;gap:10px;margin-top:8px">
+      <button id="saveBtn" type="submit">Save Entry</button>
+      <button id="clearBtn" type="button" class="secondary">Clear</button>
+    </div>
+  </form>
+</div>
+
+<div class="grid2" style="display:grid;grid-template-columns:1fr 380px;gap:12px;margin-top:12px">
+  <div class="card">
+    <strong>Entries</strong>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <input id="filterDate" type="date" />
+      <input id="q" type="text" placeholder="Search..." style="flex:1" />
+      <select id="sortBy"><option value="dateDesc">Newest</option><option value="dateAsc">Oldest</option></select>
+    </div>
+    <div id="entryList" class="entry-list" style="margin-top:10px"></div>
+  </div>
+
+  <aside class="card">
+    <strong>Summary</strong>
+    <div class="summary" style="margin-top:10px">
+      <div class="s"><div class="meta">Total days</div><div id="totalDays">0</div></div>
+      <div class="s"><div class="meta">Avg Protein</div><div id="avgProtein">0 g</div></div>
+      <div class="s"><div class="meta">Posture %</div><div id="posturePct">0%</div></div>
+      <div class="s"><div class="meta">Walk %</div><div id="walkPct">0%</div></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <strong>Quick</strong>
+      <div style="margin-top:6px;display:flex;gap:6px">
+        <button id="btnToday" class="secondary">Load Today</button>
+        <button id="btnExportOne" class="secondary">Export visible</button>
+        <button id="btnDeleteAll" class="secondary">Delete All</button>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+  const KEY = 'fitpost_entries_v1';
+  const form = document.getElementById('entryForm');
+  const entryList = document.getElementById('entryList');
+  const totalDays = document.getElementById('totalDays');
+  const avgProtein = document.getElementById('avgProtein');
+  const posturePct = document.getElementById('posturePct');
+  const walkPct = document.getElementById('walkPct');
+  const countEl = document.getElementById('count');
+  const q = document.getElementById('q');
+  const filterDate = document.getElementById('filterDate');
+  const sortBy = document.getElementById('sortBy');
+  const fileInput = document.getElementById('fileInput');
+
+  function load(){
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return [];
+    try{ return JSON.parse(raw) } catch(e){ return [] }
+  }
+  function saveAll(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); render() }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7) }
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  // ---------- Quick entry helpers ----------
+  function getOrCreateTodayEntry(){
+    const arr = load();
+    const today = todayISO();
+    let entry = arr.find(x => x.date === today);
+    if(!entry){
+      entry = {
+        id: uid(),
+        date: today,
+        workout: '',
+        breakfast: '',
+        lunch: '',
+        snack: '',
+        dinner: '',
+        protein: 0,
+        walk: false,
+        posture: false,
+        notes: '',
+        updatedAt: new Date().toISOString()
+      };
+      arr.push(entry);
+      saveAll(arr);
+    }
+    return entry;
+  }
+
+  function updateToday(patch){
+    const arr = load();
+    const today = todayISO();
+    let idx = arr.findIndex(x => x.date === today);
+    if(idx === -1){
+      const newEntry = Object.assign({
+        id: uid(),
+        date: today,
+        workout: '',
+        breakfast: '',
+        lunch: '',
+        snack: '',
+        dinner: '',
+        protein: 0,
+        walk: false,
+        posture: false,
+        notes: '',
+        updatedAt: new Date().toISOString()
+      }, patch);
+      arr.push(newEntry);
+    } else {
+      arr[idx] = Object.assign({}, arr[idx], patch, { updatedAt: new Date().toISOString() });
+    }
+    saveAll(arr);
+    render();
+  }
+
+  // ---------- Quick Buttons ----------
+  document.getElementById('btnQuickWorkout').addEventListener('click', function(){
+    const e = getOrCreateTodayEntry();
+    const newWorkout = e.workout ? '' : 'Push';
+    updateToday({ workout: newWorkout });
+    toastQuick('Workout: ' + (newWorkout || 'cleared'));
+  });
+
+  document.getElementById('btnQuickPosture').addEventListener('click', function(){
+    const e = getOrCreateTodayEntry();
+    const newVal = !e.posture;
+    updateToday({ posture: newVal });
+    toastQuick('Posture: ' + (newVal ? 'done' : 'cleared'));
+  });
+
+  document.getElementById('btnQuickWalk').addEventListener('click', function(){
+    const e = getOrCreateTodayEntry();
+    const newVal = !e.walk;
+    updateToday({ walk: newVal });
+    toastQuick('Walk: ' + (newVal ? 'done' : 'cleared'));
+  });
+
+  document.getElementById('btnQuickProtein').addEventListener('click', function(){
+    const input = document.getElementById('quickProteinInput');
+    let add = Number(input.value || 0);
+    if(!add || add <= 0){ input.focus(); return alert('Enter protein grams'); }
+    const e = getOrCreateTodayEntry();
+    const newProtein = (Number(e.protein || 0) + add);
+    updateToday({ protein: newProtein });
+    input.value = '';
+    toastQuick('Protein updated: ' + newProtein + ' g');
+  });
+
+  // ---------- Toast message ----------
+  function toastQuick(msg){
+    let t = document.getElementById('quickToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'quickToast';
+      t.style.position = 'fixed';
+      t.style.right = '14px';
+      t.style.bottom = '60px';
+      t.style.padding = '10px 12px';
+      t.style.background = 'rgba(0,0,0,0.6)';
+      t.style.border = '1px solid rgba(255,255,255,0.06)';
+      t.style.borderRadius = '8px';
+      t.style.color = '#dfeef8';
+      t.style.zIndex = 9999;
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._t);
+    t._t = setTimeout(()=>{ t.style.opacity = '0'; }, 2100);
+  }
+
+  // ---------- Entry Form ----------
+  function getFormData(){
+    return {
+      id: form.dataset.editId || uid(),
+      date: document.getElementById('date').value,
+      workout: document.getElementById('workout').value,
+      breakfast: document.getElementById('breakfast').value,
+      lunch: document.getElementById('lunch').value,
+      snack: document.getElementById('snack').value,
+      dinner: document.getElementById('dinner').value,
+      protein: Number(document.getElementById('protein').value || 0),
+      walk: document.getElementById('walk').value === 'yes',
+      posture: document.getElementById('posture').value === 'yes',
+      notes: document.getElementById('notes').value,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    const all = load();
+    const data = getFormData();
+    const idx = all.findIndex(x => x.id === data.id);
+    if(idx >= 0) all[idx] = data;
+    else all.push(data);
+    saveAll(all);
+    clearForm();
+  });
+
+  function clearForm(){
+    delete form.dataset.editId;
+    form.reset();
+    document.getElementById('date').value = todayISO();
+  }
+  document.getElementById('clearBtn').addEventListener('click', clearForm);
+
+  // ---------- Render entries ----------
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+  function render(){
+    const items = load();
+    const qv = q.value.trim().toLowerCase();
+    const fd = filterDate.value;
+
+    let filtered = items.slice();
+    if(fd) filtered = filtered.filter(x => x.date === fd);
+    if(qv) filtered = filtered.filter(x => (x.breakfast + x.lunch + x.snack + x.dinner + x.notes).toLowerCase().includes(qv));
+    if(sortBy.value === 'dateDesc') filtered.sort((a,b)=> b.date.localeCompare(a.date));
+    else filtered.sort((a,b)=> a.date.localeCompare(b.date));
+
+    entryList.innerHTML = '';
+    filtered.forEach(item=>{
+      const el = document.createElement('div');
+      el.className = 'entry';
+      el.innerHTML = `
+        <div style="flex:1">
+          <strong>${item.date}</strong>
+          <span class="pill">${item.workout || 'No workout'}</span>
+          <span class="meta" style="margin-left:10px">${item.protein} g protein</span>
+          <div class="meta" style="margin-top:6px">
+            <div><strong>B:</strong> ${escapeHtml(item.breakfast||'-')}</div>
+            <div><strong>L:</strong> ${escapeHtml(item.lunch||'-')}</div>
+            <div><strong>S:</strong> ${escapeHtml(item.snack||'-')} <strong>D:</strong> ${escapeHtml(item.dinner||'-')}</div>
+            ${ item.notes ? `<div class="meta">Notes: ${escapeHtml(item.notes)}</div>` : '' }
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="secondary" data-action="edit" data-id="${item.id}">Edit</button>
+          <button class="secondary" data-action="delete" data-id="${item.id}">Delete</button>
+        </div>
+      `;
+      entryList.appendChild(el);
+    });
+
+    // Summary
+    const total = items.length;
+    totalDays.textContent = total;
+    const avg = total ? Math.round(items.reduce((s,i)=>s+i.protein,0)/total) : 0;
+    avgProtein.textContent = `${avg} g`;
+    posturePct.textContent = total ? Math.round(items.filter(i=>i.posture).length*100/total)+'%' : '0%';
+    walkPct.textContent = total ? Math.round(items.filter(i=>i.walk).length*100/total)+'%' : '0%';
+  }
+
+  entryList.addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if(action === 'edit'){
+      const items = load();
+      const obj = items.find(x=>x.id === id);
+      if(obj){
+        form.dataset.editId = obj.id;
+        document.getElementById('date').value = obj.date;
+        document.getElementById('workout').value = obj.workout;
+        document.getElementById('breakfast').value = obj.breakfast;
+        document.getElementById('lunch').value = obj.lunch;
+        document.getElementById('snack').value = obj.snack;
+        document.getElementById('dinner').value = obj.dinner;
+        document.getElementById('protein').value = obj.protein;
+        document.getElementById('walk').value = obj.walk ? 'yes' : 'no';
+        document.getElementById('posture').value = obj.posture ? 'yes' : 'no';
+        document.getElementById('notes').value = obj.notes;
+        window.scrollTo({top:0,behavior:'smooth'});
+      }
+    }
+    else if(action === 'delete'){
+      if(!confirm('Delete entry?')) return;
+      const items = load().filter(x=>x.id !== id);
+      saveAll(items);
+    }
+  });
+
+  // Filters
+  q.addEventListener('input', render);
+  filterDate.addEventListener('change', render);
+  sortBy.addEventListener('change', render);
+
+  // Export / Import
+  document.getElementById('btnExport').addEventListener('click', function(){
+    const blob = new Blob([JSON.stringify(load(),null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'backup.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('btnCSV').addEventListener('click', function(){
+    const items = load();
+    if(!items.length) return alert('No data');
+    const headers = ['date','workout','breakfast','lunch','snack','dinner','protein','walk','posture','notes'];
+    const rows = [headers.join(',')].concat(items.map(i=>headers.map(h=>JSON.stringify(i[h]||"")).join(',')));
+    const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = 'data.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('btnImport').addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', function(ev){
+    const f = ev.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!Array.isArray(parsed)) throw 'Invalid';
+        const merged = load().concat(parsed);
+        saveAll(merged);
+        alert('Imported');
+      } catch(err){ alert('Error importing') }
+    };
+    reader.readAsText(f);
+  });
+
+  document.getElementById('btnDeleteAll').addEventListener('click', function(){
+    if(confirm('Delete ALL entries?')){ localStorage.removeItem(KEY); render(); }
+  });
+
+  document.getElementById('btnToday').addEventListener('click', function(){
+    document.getElementById('date').value = todayISO();
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  render();
+})();
+</script>
+
+<footer style="text-align:center;margin-top:20px;color:#889">
+  Built for your fitness journey — Data stays on your device (localStorage).
+</footer>
+</div>
+</body>
+</html>
