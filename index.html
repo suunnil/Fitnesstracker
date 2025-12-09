@@ -244,7 +244,7 @@
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7) }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
 
-  // ---------- Quick entry helpers ----------
+  // ---------- Quick entry helpers ------------
   function getOrCreateTodayEntry(){
     const arr = load();
     const today = todayISO();
