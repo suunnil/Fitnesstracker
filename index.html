@@ -522,6 +522,157 @@
 })();
 </script>
 
+// ---------------- DAILY DETAIL LOGGING (workouts, posture photos, food calc, water, evaluation) ----------------
+function createFoodRow(item='', g=0, kcal100=0, prot100=0){
+  const tbody = document.querySelector('#foodTable tbody');
+  const id = 'food_' + Math.random().toString(36).slice(2,8);
+  const tr = document.createElement('tr'); tr.dataset.id = id;
+  tr.innerHTML = `
+    <td><input class="foodItem" value="${item}" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.05)" /></td>
+    <td><input class="foodG" type="number" value="${g}" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.05)" /></td>
+    <td><input class="foodKcal" type="number" value="${kcal100}" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.05)"/></td>
+    <td><input class="foodProt" type="number" value="${prot100}" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.05)"/></td>
+    <td><button class="secondary removeFood" type="button">Remove</button></td>
+  `;
+  tbody.appendChild(tr);
+
+  // wire events
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateFoodTotals));
+  tr.querySelector('.removeFood').addEventListener('click', ()=>{
+    tr.remove(); updateFoodTotals();
+  });
+  updateFoodTotals();
+}
+
+// initial hookup for add buttons
+document.getElementById('addFoodRow').addEventListener('click', function(e){ e.preventDefault(); createFoodRow(); });
+document.getElementById('addPreset').addEventListener('click', function(e){
+  e.preventDefault();
+  // adds 3 common presets: rice(150g cooked), egg(1->50g), whey(30g)
+  createFoodRow('Cooked Rice', 150, 130, 2.7); // kcal/100g ; prot/100g
+  createFoodRow('Boiled Moong (pesalu)', 100, 105, 7);
+  createFoodRow('Egg (1 medium ~50g)', 50, 78*2, 6.3*2); // note: we treat as approx (see notes)
+  updateFoodTotals();
+});
+
+function updateFoodTotals(){
+  const rows = Array.from(document.querySelectorAll('#foodTable tbody tr'));
+  let totalK = 0, totalP = 0;
+  rows.forEach(r=>{
+    const g = Number(r.querySelector('.foodG').value || 0);
+    const k100 = Number(r.querySelector('.foodKcal').value || 0);
+    const p100 = Number(r.querySelector('.foodProt').value || 0);
+    totalK += (g/100) * k100;
+    totalP += (g/100) * p100;
+  });
+  document.getElementById('totKcal').textContent = Math.round(totalK);
+  document.getElementById('totProt').textContent = Math.round(totalP);
+  return { kcal: totalK, prot: totalP };
+}
+
+// ---------- quick-workout day toggles ----------
+['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{
+  const btn = document.getElementById('day'+d);
+  btn.addEventListener('click', function(){
+    const today = todayISO();
+    const items = load();
+    let entry = items.find(x=> x.date === today);
+    if(!entry){ entry = { id: uid(), date: today, workoutDays: {}, protein:0, walk:false, posture:false, notes:'', updatedAt: new Date().toISOString() }; items.push(entry); }
+    entry.workoutDays = entry.workoutDays || {};
+    entry.workoutDays[d] = !entry.workoutDays[d];
+    saveAll(items);
+    // toggle ui style
+    btn.classList.toggle('accentOn', !!entry.workoutDays[d]);
+    render();
+  });
+});
+
+// ---------- posture image upload (base64 stored) ----------
+function readFileToDataUrl(input, slot){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  if(f.size > 500 * 1024){ alert('Image too large. Please use smaller than 500KB'); return; } // quick guard
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const dataUrl = ev.target.result;
+    // save to today's entry
+    const arr = load(); const today = todayISO();
+    let entry = arr.find(x=>x.date===today);
+    if(!entry){ entry = { id: uid(), date: today, workoutDays:{}, protein:0, walk:false, posture:false, notes:'', updatedAt:new Date().toISOString() }; arr.push(entry); }
+    entry.postureImgs = entry.postureImgs || {};
+    entry.postureImgs[slot] = dataUrl;
+    saveAll(arr);
+    showPosturePreviews();
+  };
+  reader.readAsDataURL(f);
+}
+document.getElementById('postureFile1').addEventListener('change', ()=> readFileToDataUrl(document.getElementById('postureFile1'), 'a'));
+document.getElementById('postureFile2').addEventListener('change', ()=> readFileToDataUrl(document.getElementById('postureFile2'), 'b'));
+
+function showPosturePreviews(){
+  const p = document.getElementById('posturePreview'); p.innerHTML = '';
+  const arr = load(); const today = todayISO();
+  const entry = arr.find(x=>x.date===today);
+  if(!entry || !entry.postureImgs) return;
+  ['a','b'].forEach(k=>{
+    if(entry.postureImgs[k]){
+      const img = document.createElement('img'); img.src = entry.postureImgs[k]; img.style.width='120px'; img.style.borderRadius='6px'; img.style.objectFit='cover';
+      p.appendChild(img);
+    }
+  });
+}
+showPosturePreviews();
+
+// ---------- Evaluate day logic ----------
+document.getElementById('btnEvaluate').addEventListener('click', function(){
+  const foodTotals = updateFoodTotals();
+  const water = Number(document.getElementById('waterMl').value || 0);
+  const pTarget = Number(document.getElementById('proteinTarget').value || 100);
+  const calMin = Number(document.getElementById('calMin').value || 1400);
+  const calMax = Number(document.getElementById('calMax').value || 2200);
+
+  // load today's saved entry
+  const arr = load(); const today = todayISO();
+  let entry = arr.find(x=>x.date===today);
+  if(!entry){ entry = { id: uid(), date: today, workoutDays:{}, protein:0, walk:false, posture:false, notes:'', updatedAt:new Date().toISOString() }; arr.push(entry); }
+
+  // update entry with food totals + water + protein if not set
+  entry.calories = Math.round(foodTotals.kcal);
+  entry.protein = Math.round(foodTotals.prot);
+  entry.waterMl = water;
+  // check walk & posture stored (entry.walk / entry.posture)
+  saveAll(arr);
+
+  // compute score (6 points)
+  let score = 0;
+  const workoutDone = Object.values(entry.workoutDays || {}).some(Boolean);
+  if(workoutDone) score++;
+  if(entry.posture) score++;
+  if(entry.walk) score++;
+  if(entry.protein >= pTarget) score++;
+  if(entry.waterMl >=  (Number(document.getElementById('waterMl').placeholder || 3000))) score++; // fallback
+  if(entry.calories >= calMin && entry.calories <= calMax) score++;
+
+  const pct = Math.round((score / 6) * 100);
+  const verdict = pct >= 66 ? 'Good day ✅' : (pct >= 40 ? 'Fair — improve few things ⚠️' : 'Needs improvement ❌');
+
+  // display result
+  const out = document.getElementById('dailyResult');
+  out.innerHTML = `
+    <div><strong>Score:</strong> ${pct}% (${score}/6)</div>
+    <div><strong>Calories:</strong> ${entry.calories} kcal (target ${calMin}-${calMax})</div>
+    <div><strong>Protein:</strong> ${entry.protein} g (target ${pTarget} g)</div>
+    <div><strong>Water:</strong> ${entry.waterMl} ml</div>
+    <div style="margin-top:6px"><strong>Verdict:</strong> ${verdict}</div>
+  `;
+});
+
+// save daily summary into the same entry (keeps everything)
+document.getElementById('btnSaveDaily').addEventListener('click', function(){
+  // just call evaluate then save (value already saved by evaluate)
+  document.getElementById('btnEvaluate').click();
+  alert('Daily summary saved.');
+});
 <footer style="text-align:center;margin-top:20px;color:#889">
   Built for your fitness journey — Data stays on your device (localStorage).
 </footer>
